@@ -91,6 +91,17 @@ ls -la ~/.config/gmgn/
 
 ### 5. Wallet
 
+Ada 2 cara:
+
+**A. Generate lewat bot (paling gampang)**
+
+Start bot Telegram, buka menu **👛 Wallet** → **➕ Generate Wallet**. Bot bikin random EVM
+account, simpan otomatis ke `wallet.json`, dan jadikan wallet aktif (kalau belum ada).
+Bisa bikin banyak wallet + switch aktif lewat menu yang sama (`🔀 Switch Wallet`,
+`🗑️ Delete Wallet`). Private key tersimpan di `wallet.json` lokal — jangan pernah share.
+
+**B. Tulis manual**
+
 Buat `wallet.json` di root project (gitignored, chmod 600):
 
 ```json
@@ -106,7 +117,9 @@ Buat `wallet.json` di root project (gitignored, chmod 600):
 
 Field `privateKey` lama yang pakai snake_case (`private_key`, `created_at`) tetap didukung — auto-normalisasi.
 
-> Dry-run TIDAK butuh wallet berisi — posisi cuma simulasi. Reconcile on-chain (deteksi jual manual) cuma aktif di mode `live`.
+> Wallet pertama otomatis jadi aktif (`isActive: true`). Switch aktif: ubah field `isActive`
+> atau lewat bot. Dry-run TIDAK butuh wallet berisi — posisi cuma simulasi. Reconcile
+> on-chain (deteksi jual manual) cuma aktif di mode `live`.
 
 ### 6. Mode & settings
 
