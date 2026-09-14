@@ -46,13 +46,48 @@ Opsional: `RPC_URL` / `RPC_WS_URL` (override), `TELEGRAM_ALLOWED_IDS` (allowlist
 
 ### 4. GMGN credential flow
 
-1. Generate Ed25519 keypair (request-signing key, BUKAN wallet key):
-   ```bash
-   openssl genpkey -algorithm ed25519 -out keypair.pem
-   ```
-2. Upload public key di https://gmgn.ai/ai → dapat `GMGN_API_KEY`.
-3. Isi `GMGN_API_KEY` + `GMGN_PRIVATE_KEY` (isi isi file PEM, format satu baris dengan `\n`) di `.env`.
-   Simpan juga di `~/.config/gmgn/.env` (chmod 600) kalau mau dipakai gmgn-cli langsung.
+Install CLI global (dipakai buat generate keypair + data GMGN):
+
+```bash
+npm install -g gmgn-cli
+```
+
+Generate keypair Ed25519 (request-signing key, BUKAN wallet key). Keypair disimpan di
+`~/.config/gmgn/keypair.pem`, dan CLI kasih link pre-filled buat bikin API Key:
+
+```bash
+gmgn-cli config
+```
+
+Buka link yang dikasih → copy `GMGN_API_KEY` → apply:
+
+```bash
+gmgn-cli config --apply <GMGN_API_KEY>
+```
+
+Ini otomatis nulis `GMGN_API_KEY` + `GMGN_PRIVATE_KEY` ke `~/.config/gmgn/.env`.
+
+Copy private key dari `keypair.pem` ke `.env` project (command udah di-test, format persis
+kayak yang ditulis CLI — strip comment line + public key, join baris pakai `\n` literal):
+
+```bash
+cd /root/robinhood-bot       # sesuaikan path project lo
+cp -n .env.example .env      # kalau belum ada
+
+PRIV="$(sed -n '/BEGIN PRIVATE KEY/,/END PRIVATE KEY/p' ~/.config/gmgn/keypair.pem | perl -pe 'chomp if eof; s/\n/\\n/g')"
+sed -i "s|^GMGN_PRIVATE_KEY=.*|GMGN_PRIVATE_KEY=\"$PRIV\"|" .env
+
+# verify — harus nampilin BEGIN PRIVATE KEY dan gak ada PUBLIC
+grep -c "PRIVATE KEY" .env && grep -c "PUBLIC" .env || true
+```
+
+Cek isi `~/.config/gmgn/` seharusnya ada:
+
+```bash
+ls -la ~/.config/gmgn/
+#  .env          — GMGN_API_KEY + GMGN_PRIVATE_KEY (chmod 600)
+#  keypair.pem   — pasangan Ed25519 (private + public)
+```
 
 ### 5. Wallet
 
