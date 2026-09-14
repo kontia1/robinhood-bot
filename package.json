@@ -1,0 +1,32 @@
+{
+  "name": "robinhood-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Robinhood Chain trading bot — GMGN CLI screening, dry-run/live execution",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ethers": "^6.17.0",
+    "fastify": "^4.28.0",
+    "gmgn-cli": "^1.6.1",
+    "pino": "^9.0.0",
+    "telegraf": "^4.16.0",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

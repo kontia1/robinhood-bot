@@ -1,0 +1,43 @@
+# --- Secrets & credentials (never commit) ---
+.env
+.env.*
+!.env.example
+
+# --- Wallet ---
+wallet.json
+wallet*.json
+
+# --- Runtime state (wallet addresses, positions, risk) ---
+settings.json
+positions*.json
+risk/
+
+# --- Scratch / test data dumps ---
+pm_code.txt
+ur_txs.txt
+ur_txs_if.txt
+ur_buys.txt
+raw_txs.txt
+blocklist-dupe.json
+*.log
+*.log.*
+
+# --- Node ---
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# --- DB / cache ---
+prisma/dev.db
+*.sqlite
+*.sqlite3
+.cache/
+data/*.json
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
