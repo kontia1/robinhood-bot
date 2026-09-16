@@ -14,7 +14,7 @@ function posFile(): string {
 /** Satu level TP partial: profit % dari entry + berapa bagian posisi yang dijual di level itu. */
 export interface TpPlanLevel {
   pct: number; // profit % (mis. 30 = +30%) — FROM ENTRY
-  frac: number; // persen (0-100) dari SISA posisi yang dijual pas level ini kena
+  frac: number; // persen (0-100) dari POSISI AWAL (100%) yang dijual pas level ini kena
   triggered: boolean;
   triggeredAt?: number;
   exitPrice?: number;
@@ -170,6 +170,9 @@ export function clearTpPlan(addr: string): { ok: boolean; error?: string } {
 /**
  * Dipanggil pas satu level TP tercapai: mark level triggered, kurangi sisa posisi,
  * akumulasi realized PnL. Return info untuk notifikasi, atau null kalau level ga valid.
+ *
+ * Semantik frac = % dari POSISI AWAL (100%), bukan % dari sisa.
+ * Contoh [50, 25]: TP1 jual 50% (sisa 50%), TP2 jual 25% (sisa 25%).
  */
 export function onTpTriggered(
   addr: string,
@@ -182,7 +185,8 @@ export function onTpTriggered(
   const level = pos.tpPlan?.find((l) => Math.abs(l.pct - levelPct) < 0.01 && !l.triggered);
   if (!level) return { ok: false, error: `Level TP +${levelPct}% tidak ada / sudah kena` };
   const rem = pos.remainingFrac ?? 1;
-  const soldFrac = rem * (level.frac / 100);
+  // jual % dari posisi AWAL (100%), clamp ke sisa biar ga oversell
+  const soldFrac = Math.max(0, Math.min(rem, level.frac / 100));
   const pctGain = ((exitPrice - pos.entryPrice) / pos.entryPrice) * 100;
   const realizedUsd = (pctGain / 100) * pos.sizeUsd * soldFrac;
   level.triggered = true;

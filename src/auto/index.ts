@@ -43,6 +43,14 @@ function fmtNumPlain(n: number | undefined | null): string {
   return String(Math.round(n));
 }
 
+/** Format jumlah ETH hasil trade (0.000244, 0.05 dst) — biar nggak nampil $0.00. */
+function fmtEthAmt(n: number | undefined | null): string {
+  if (n == null || Number.isNaN(n)) return "?";
+  if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (n >= 0.000001) return n.toFixed(6).replace(/0+$/, "").replace(/\.$/, "") || "0";
+  return n.toExponential(4);
+}
+
 /** Detail tambahan di notif token lolos: contract + smart-wallet-ish. */
 function detailLine(r: ScanResult): string {
   return (
@@ -398,9 +406,11 @@ export class AutoEngine {
     }
   }
 
-  /** Satu level TP ladder kena: jual fraksi sisa posisi, catat realized PnL, notif. */
+  /** Satu level TP ladder kena: jual fraksi posisi (%, dari posisi awal), catat realized PnL, notif. */
   private async triggerTpLevel(pos: Position, level: positions.TpPlanLevel, price: number): Promise<void> {
-    const fr = Math.min(1, Math.max(0.0001, level.frac / 100));
+    // frac = % dari posisi AWAL → konversi ke fraksi dari balance SEKARANG (sisa).
+    const remNow = Math.max(positions.remainingFraction(pos.tokenAddress), 1e-9);
+    const fr = Math.min(1, Math.max(0.0001, level.frac / 100 / remNow));
     const result = await this.ensureExecutor().sellFraction(
       { address: pos.tokenAddress, symbol: pos.symbol, name: pos.name, price },
       "TAKE_PROFIT",
@@ -409,9 +419,9 @@ export class AutoEngine {
     );
     if (!result.ok) {
       await this.notify(
-        "⚠️ *TP LADDER GAGAL SELL* (LIVE)\\n\\n" +
-        `Token: ${escMd(pos.symbol)} — ${escMd(pos.name)}\\n` +
-        `Level: +${level.pct}% · jual ${level.frac}% sisa\\n` +
+        "⚠️ *TP LADDER GAGAL SELL* (LIVE)\n\n" +
+        `Token: ${escMd(pos.symbol)} — ${escMd(pos.name)}\n` +
+        `Level: +${level.pct}% · jual ${level.frac}% posisi\n` +
         `Error: \`${escMd(truncErr(result.error))}\``,
         tokenKeyboard({ address: pos.tokenAddress, symbol: pos.symbol } as any)
       ).catch((e) => console.log("[auto] tp-fail notif:", e?.message || e));
@@ -426,14 +436,14 @@ export class AutoEngine {
     const realized = upd.realizedUsd ?? 0;
     const gain = upd.pctGain ?? 0;
     const remPct = Math.round(remFrac * 100);
-    console.log(`[auto] TP +${level.pct}% hit ${pos.symbol} — jual ${level.frac}% (${fr * 100}% bal), realized $${realized.toFixed(2)}, sisa ${remPct}%`);
+    console.log(`[auto] TP +${level.pct}% hit ${pos.symbol} — jual ${level.frac}% posisi, realized ${fmtEthAmt(realized)} ETH, sisa ${remPct}%`);
     await this.notify(
-      "🎯 *TP HIT*" + (result.simulated ? " (dry-run)" : " (LIVE)") + "\\n\\n" +
-      `Token: ${escMd(pos.symbol)} — ${escMd(pos.name)}\\n` +
-      `Level: +${level.pct}% → jual *${level.frac}%* sisa posisi\\n` +
-      `Exit: $${price} (${gain >= 0 ? "+" : ""}${gain.toFixed(1)}%)\\n` +
-      `Realized: ${realized >= 0 ? "+" : ""}$${realized.toFixed(2)}\\n` +
-      `Sisa posisi: *${remPct}%*${remPct > 0 ? (pos.moonbag ? " (moonbag 🧘)" : " — level berikutnya siap") : ""}\\n` +
+      "🎯 *TP HIT*" + (result.simulated ? " (dry-run)" : " (LIVE)") + "\n\n" +
+      `Token: ${escMd(pos.symbol)} — ${escMd(pos.name)}\n` +
+      `Level: +${level.pct}% → jual *${level.frac}%* posisi\n` +
+      `Exit: $${price} (${gain >= 0 ? "+" : ""}${gain.toFixed(1)}%)\n` +
+            `Realized: ${realized >= 0 ? "+" : ""}${fmtEthAmt(realized)} ETH\n` +
+            `Sisa posisi: *${remPct}%*${remPct > 0 ? (pos.moonbag ? " (moonbag 🧘)" : " — level berikutnya siap") : ""}\n` +
       (result.txHash ? "TX: `" + result.txHash + "`" : ""),
       {
         reply_markup: {
@@ -461,7 +471,7 @@ export class AutoEngine {
       `Token: ${pos.symbol} — ${pos.name}\n` +
       `Reason: ${reason}\n` +
       `Entry: $${pos.entryPrice} → Exit: $${price}\n` +
-      `PnL: ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% (${usd >= 0 ? "+" : ""}$${usd.toFixed(2)})` +
+      `PnL: ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% (${usd >= 0 ? "+" : ""}${fmtEthAmt(usd)} ETH)` +
       (result.txHash ? "\nTX: `" + result.txHash + "`" : ""),
       {
         reply_markup: {

@@ -60,7 +60,7 @@ export interface BotSettings {
   trailingStopPct: number;
   slippagePct: number;
   maxPositions: number;
-  /** TP ladder global (SINGLE TP mechanism) — tiap level: profit % + % sisa yang dijual. */
+  /** TP ladder global (SINGLE TP mechanism) — tiap level: profit % + % posisi awal yang dijual. */
   tpLadder: { pct: number; frac: number }[];
   /** Sisa posisi setelah semua level TP jadi moonbag (default false = close di level terakhir). */
   tpMoonbag: boolean;
@@ -217,7 +217,7 @@ export function setTpLadder(ladder: { pct: number; frac: number }[]): BotSetting
   const clean = (ladder || [])
     .filter((l) => Number.isFinite(l.pct) && Number.isFinite(l.frac) && l.pct > 0 && l.frac > 0)
     .sort((a, b) => a.pct - b.pct);
-  // total jual per level dihitung dari sisa; pastikan gak lebih dari 100% dari sisa awal
+  // total jual per level dihitung dari POSISI AWAL; pastikan gak lebih dari 100%
   let total = 0;
   const valid: { pct: number; frac: number }[] = [];
   for (const l of clean) {

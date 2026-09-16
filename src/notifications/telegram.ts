@@ -132,6 +132,13 @@ function fmtNumAmount(n: number | undefined | null): string {
   if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
   return n.toFixed(8).replace(/0+$/, "").replace(/\.$/, "") || "0";
 }
+/** Format jumlah ETH (0.000244, 0.05 dst) — biar nggak nampil $0.00. */
+function fmtEthAmt(n: number | undefined | null): string {
+  if (n == null || Number.isNaN(n)) return "?";
+  if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (n >= 0.000001) return n.toFixed(6).replace(/0+$/, "").replace(/\.$/, "") || "0";
+  return n.toExponential(4);
+}
 function fmtPrice(n: number | undefined | null): string {
   if (n == null || Number.isNaN(n)) return "?";
   if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
@@ -215,13 +222,13 @@ function tpSummaryText(pos: positions.Position): string {
     s += "_Belum ada plan. Tambah level TP biar jual bertahap + sisa jadi moonbag._\n\n";
   } else {
     plan.forEach((l, i) => {
-      s += `${i + 1}. +${l.pct}% → jual *${l.frac}%* dari sisa ${l.triggered ? "· ✅ done" : "· ⏳ pending"}\n`;
+      s += `${i + 1}. +${l.pct}% → jual *${l.frac}%* dari posisi (100%) ${l.triggered ? "· ✅ done" : "· ⏳ pending"}\n`;
     });
     s += "\n";
   }
   s += `Sisa posisi: *${rem}%*${pos.moonbag ? " (moonbag 🧘)" : ""}`;
   const realized = (pos.realizedUsd || 0);
-  if (realized) s += `\nRealized dari TP: *$${realized.toFixed(2)}*`;
+  if (realized) s += `\nRealized dari TP: *${realized >= 0 ? "+" : ""}${fmtEthAmt(realized)} ETH*`;
   return s;
 }
 
@@ -247,11 +254,11 @@ function tpGSummaryText(): string {
   if (!ladder.length) {
     t += "_OFF — TP pakai setting global biasa (full close)._\n";
   } else {
-    ladder.forEach((l, i) => t += `${i + 1}. +${l.pct}% → jual *${l.frac}%* dari sisa\n`);
+    ladder.forEach((l, i) => t += `${i + 1}. +${l.pct}% → jual *${l.frac}%* dari posisi (100%)\n`);
     t += `\nSisa setelah semua level: ${s.tpMoonbag ? "🧘 *moonbag (di-hold)*" : "❌ *full close*"}`;
   }
   t += "\n\n_Level baru otomatis berlaku ke semua posisi (baru + yg belum punya plan)._\n" +
-       "_Level = profit % dari entry. Jual % = porsi sisa posisi di level itu._";
+       "_Level = profit % dari entry. Jual % = porsi POSISI AWAL (100%) di level itu._";
   return t;
 }
 
@@ -1141,10 +1148,10 @@ bot.on("callback_query", async (ctx) => {
           if (supply > 0) mc = px * supply;
         } catch { /* keep entry */ }
         const pct = cur > 0 ? ((cur - p.entryPrice) / p.entryPrice) * 100 : 0;
-        const usd = (pct / 100) * p.sizeUsd;
+        const eth = (pct / 100) * p.sizeUsd;
         msg += `*${escMd(p.symbol)}* — ${escMd(p.name)}\n` +
           `Entry: $${fmtPrice(p.entryPrice)} → Now: $${fmtPrice(cur)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)\n` +
-          `MC: $${mc.toLocaleString(undefined, { maximumFractionDigits: 0 })} | Size: $${p.sizeUsd} | uPnL: ${usd >= 0 ? "+" : ""}$${usd.toFixed(2)}\n`;
+          `MC: $${mc.toLocaleString(undefined, { maximumFractionDigits: 0 })} | Size: ${fmtEthAmt(p.sizeUsd)} ETH | uPnL: ${eth >= 0 ? "+" : ""}${fmtEthAmt(eth)} ETH\n`;
         if (p.tpPlan?.length) {
           const rem = Math.round((p.remainingFrac ?? 1) * 100);
           msg += `🎯 TP: ${p.tpPlan.map((l) => `+${l.pct}%→${l.frac}%${l.triggered ? "✓" : ""}`).join(" · ")} | Sisa ${rem}%${p.moonbag ? " 🧘" : ""}\n`;
@@ -1231,7 +1238,7 @@ bot.on("callback_query", async (ctx) => {
       await cbAnswer(ctx);
       await editInPlace(ctx,
         `💸 *Sell ${escMd(p.symbol)}* (${walletMgr.shortLabel(p.tokenAddress)})\n\n` +
-        `Entry: $${fmtPrice(p.entryPrice)} · Size: $${p.sizeUsd}\n\n` +
+        `Entry: $${fmtPrice(p.entryPrice)} · Size: ${fmtEthAmt(p.sizeUsd)} ETH\n\n` +
         `Yakin mau jual sekarang?`,
         () => Markup.inlineKeyboard([
           [Markup.button.callback("✅ Konfirmasi Jual", `pos:confirm:${p.tokenAddress}`)],
@@ -1274,7 +1281,7 @@ bot.on("callback_query", async (ctx) => {
           "✋ *MANUAL SELL*" + (res.simulated ? " (dry-run)" : " (LIVE)") + "\n\n" +
           `Token: ${p.symbol}\n` +
           `Exit: $${fmtPrice(px)}\n` +
-          `PnL: ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% (${usd >= 0 ? "+" : ""}$${usd.toFixed(2)})`,
+          `PnL: ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% (${usd >= 0 ? "+" : ""}${fmtEthAmt(usd)} ETH)`,
           () => mainKeyboard()
         );
       } catch (e: any) {
@@ -1378,8 +1385,8 @@ bot.on("text", async (ctx) => {
         pt.stage = "frac";
         const q = await ctx.reply(
           `🎯 *TP Ladder${isGlobal ? " (global)" : " — " + (p!.symbol || "")}* — level baru: *+${amt}%*\n\n` +
-          "Sekarang ketik *berapa % dari sisa posisi* yang dijual di level ini (1-100).\n" +
-          "Contoh: `50` = jual setengah sisa di level ini; sisanya lanjut ke level berikutnya / moonbag.\n\n" +
+          "Sekarang ketik *berapa % dari posisi awal (100%)* yang dijual di level ini (1-100).\n" +
+          "Contoh: `50` = jual 50% dari seluruh posisi di level ini; sisanya lanjut ke level berikutnya / moonbag.\n\n" +
           "/cancel untuk batal.",
           { parse_mode: "Markdown" }
         );
