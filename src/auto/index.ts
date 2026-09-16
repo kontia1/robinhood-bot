@@ -43,11 +43,12 @@ function fmtNumPlain(n: number | undefined | null): string {
   return String(Math.round(n));
 }
 
-/** Format jumlah ETH hasil trade (0.000244, 0.05 dst) — biar nggak nampil $0.00. */
+/** Format jumlah ETH hasil trade (0.000244, 0.05 dst) — biar nggak nampil $0.00 / e-notation utk minus. */
 function fmtEthAmt(n: number | undefined | null): string {
   if (n == null || Number.isNaN(n)) return "?";
-  if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (n >= 0.000001) return n.toFixed(6).replace(/0+$/, "").replace(/\.$/, "") || "0";
+  const abs = Math.abs(n);
+  if (abs >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (abs >= 0.000001) return n.toFixed(6).replace(/0+$/, "").replace(/\.$/, "") || "0";
   return n.toExponential(4);
 }
 
@@ -352,7 +353,7 @@ export class AutoEngine {
                   `Token: ${pos.symbol} — ${pos.name}\n` +
                   `Alasan: dijual manual di luar bot (balance 0)\n` +
                   `Entry: $${pos.entryPrice} → ${hasPrice ? `Now: $${px}` : "harga ga ke-fetch (GMGN mati)"}\n` +
-                  `PnL: ${(closed.pnlPct ?? 0) >= 0 ? "+" : ""}${(closed.pnlPct ?? 0).toFixed(1)}% (${(closed.pnlUsd ?? 0) >= 0 ? "+" : ""}$${(closed.pnlUsd ?? 0).toFixed(2)})`,
+                  `PnL: ${(closed.pnlPct ?? 0) >= 0 ? "+" : ""}${(closed.pnlPct ?? 0).toFixed(1)}% (${(closed.pnlUsd ?? 0) >= 0 ? "+" : ""}${fmtEthAmt(closed.pnlUsd ?? 0)} ETH)`,
                   { reply_markup: { inline_keyboard: [[{ text: "🗂️ Menu", callback_data: "back:main" }]] } }
                 );
               }
@@ -389,7 +390,7 @@ export class AutoEngine {
               "💸 *CLOSE — TP LADDER SELESAI*\n\n" +
               `Token: ${pos.symbol} — ${pos.name}\n` +
               `Entry: $${pos.entryPrice} → Exit akhir: $${px}\n` +
-              `PnL total: ${(closed.pnlPct ?? 0) >= 0 ? "+" : ""}${(closed.pnlPct ?? 0).toFixed(1)}% (${(closed.pnlUsd ?? 0) >= 0 ? "+" : ""}$${(closed.pnlUsd ?? 0).toFixed(2)})`,
+              `PnL total: ${(closed.pnlPct ?? 0) >= 0 ? "+" : ""}${(closed.pnlPct ?? 0).toFixed(1)}% (${(closed.pnlUsd ?? 0) >= 0 ? "+" : ""}${fmtEthAmt(closed.pnlUsd ?? 0)} ETH)`,
               { reply_markup: { inline_keyboard: [[{ text: "🗂️ Menu", callback_data: "back:main" }]] } }
             ).catch((e) => console.log("[auto] tp-final notif fail:", e?.message || e));
           }

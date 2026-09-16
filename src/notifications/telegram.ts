@@ -132,11 +132,12 @@ function fmtNumAmount(n: number | undefined | null): string {
   if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
   return n.toFixed(8).replace(/0+$/, "").replace(/\.$/, "") || "0";
 }
-/** Format jumlah ETH (0.000244, 0.05 dst) — biar nggak nampil $0.00. */
+/** Format jumlah ETH (0.000244, -0.000202 dst) — biar nggak nampil $0.00 / e-notation utk minus. */
 function fmtEthAmt(n: number | undefined | null): string {
   if (n == null || Number.isNaN(n)) return "?";
-  if (n >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (n >= 0.000001) return n.toFixed(6).replace(/0+$/, "").replace(/\.$/, "") || "0";
+  const abs = Math.abs(n);
+  if (abs >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  if (abs >= 0.000001) return n.toFixed(6).replace(/0+$/, "").replace(/\.$/, "") || "0";
   return n.toExponential(4);
 }
 function fmtPrice(n: number | undefined | null): string {
@@ -1113,14 +1114,14 @@ bot.on("callback_query", async (ctx) => {
       const closed = positions.recentClosed(20);
       let msg = "📈 *PnL Report*\n\n";
       msg += `Open: ${st.open} | Closed: ${st.closed}\n`;
-      msg += `Daily PnL: *${st.dailyPnlUsd >= 0 ? "+" : ""}$${st.dailyPnlUsd.toFixed(2)}* (${st.dayWin}W/${st.dayLoss}L)\n`;
-      msg += `All-time PnL: *${st.totalPnlUsd >= 0 ? "+" : ""}$${st.totalPnlUsd.toFixed(2)}* (${st.win}W/${st.loss}L, win rate ${st.closed ? Math.round((st.win / st.closed) * 100) : 0}%)\n\n`;
+      msg += `Daily PnL: *${st.dailyPnlUsd >= 0 ? "+" : ""}${fmtEthAmt(st.dailyPnlUsd)} ETH* (${st.dayWin}W/${st.dayLoss}L)\n`;
+      msg += `All-time PnL: *${st.totalPnlUsd >= 0 ? "+" : ""}${fmtEthAmt(st.totalPnlUsd)} ETH* (${st.win}W/${st.loss}L, win rate ${st.closed ? Math.round((st.win / st.closed) * 100) : 0}%)\n\n`;
 
       if (closed.length) {
         msg += "*Riwayat Close (max 20)*\n";
         for (const p of closed) {
           const when = p.closedAt ? new Date(p.closedAt).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
-          msg += `${escMd(p.symbol)} · ${escMd(p.closeReason)} · ${(p.pnlPct ?? 0) >= 0 ? "+" : ""}${(p.pnlPct ?? 0).toFixed(1)}% (${(p.pnlUsd ?? 0) >= 0 ? "+" : ""}$${(p.pnlUsd ?? 0).toFixed(2)}) · ${when}\n`;
+          msg += `${escMd(p.symbol)} · ${escMd(p.closeReason)} · ${(p.pnlPct ?? 0) >= 0 ? "+" : ""}${(p.pnlPct ?? 0).toFixed(1)}% (${(p.pnlUsd ?? 0) >= 0 ? "+" : ""}${fmtEthAmt(p.pnlUsd ?? 0)} ETH) · ${when}\n`;
         }
       } else {
         msg += "Belum ada posisi close. Auto-engine bakal isi saat ada sinyal.\n";
@@ -1508,7 +1509,7 @@ bot.on("text", async (ctx) => {
       "📊 *Status*\n\n" +
       `Mode: ${settings.getSettings().mode === "live" ? "🟢 LIVE" : "🟡 DRY-RUN"}\n` +
       riskLine + "\n" +
-      `Win/Loss closed: ${stt.win}/${stt.loss} | Total PnL: $${stt.totalPnlUsd.toFixed(2)}`,
+      `Win/Loss closed: ${stt.win}/${stt.loss} | Total PnL: ${stt.totalPnlUsd >= 0 ? "+" : ""}${fmtEthAmt(stt.totalPnlUsd)} ETH`,
       { parse_mode: "Markdown", ...mainKeyboard() }
     );
     return;
